@@ -58,7 +58,23 @@ void process_threshold_c(struct Image* image, int threshold)
 	for (size_t i = 0; i < image->size; i++) {
 		image->data[i] = image->data[i] > threshold ? 255 : 0;
 	}
-} 
+}
+
+void process_threshold_SIMD(struct Image* image, int threshold)
+{
+	int src = 1;
+	int dst;
+	/*
+	asm("mov %1, %0\n\t"
+		"add $1, %0"
+		: "=r" (dst)
+		: "r" (src));
+	printf("%d\n", dst);
+	*/
+	_asm{
+		emms;
+	}
+}
 
 //input threshold, image_path, .. , image_path
 int main(int argc, char* argv[])
@@ -105,6 +121,7 @@ int main(int argc, char* argv[])
 				process_threshold_c(&image, threshold);
 			} else {
 				//SIMD
+				process_threshold_SIMD(&image, threshold);
 			}
 
 			end = clock();
