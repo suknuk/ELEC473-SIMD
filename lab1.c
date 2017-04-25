@@ -2,12 +2,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <string.h> // strcmp
+
 // struct to hold data for the image
 struct Image
 {
 	unsigned char* data;
 	size_t size;
 };
+
+// enum to define which processing type should be used
+enum PROCESSING_TYPE {C, SIMD};
 
 // reading an image file to an Image struct
 int open_image(const char* path, struct Image* image)
@@ -58,27 +63,60 @@ void process_threshold_c(struct Image* image, int threshold)
 //input threshold, image_path, .. , image_path
 int main(int argc, char* argv[])
 {
-	int images_nr = argc - 2;
+	if(argc < 4) {
+		printf("Need at least 3 arguments\n");
+		return 1;
+	}
+
+	int images_nr = argc - 3;
 	int threshold;
 	sscanf(argv[1],"%d",&threshold);
 	printf("Applying threshold of %d to %d images\n",threshold,images_nr);
+	
+	enum PROCESSING_TYPE myStrategy;
+	if(strcmp(argv[2], "C") == 0) {
+		myStrategy = C;
+		printf("Using C implementation\n");
+	} else if(strcmp(argv[2], "SIMD") == 0) {
+		myStrategy = SIMD;
+		printf("Using SIMD implementation\n");
+	} else {
+		printf("No processing strategy defined\n");
+		return 1;
+	}
+	
 
 	time_t start, end;
 	float dt;
 	// iterate every given image
-	for (int i = 1; i <= images_nr; i++) { 
+	for (int i = 3; i < argc; i++) { 
+		printf("iterating %s\n", argv[i]);
 		struct Image image;
 		// load image		
-		open_image(argv[i+1], &image);
+		int open = open_image(argv[i], &image);
 
-		start = clock();
-		// iterate all pixels
+		// process if no errors of opening image
+		if (open == 0){
+			start = clock();
+			// iterate all pixels
 
-		end = clock();
-		dt = (end-start)/(float)(CLOCKS_PER_SEC);	
+			if (myStrategy == C){
+				//process_threshold_c
+				process_threshold_c(&image, threshold);
+			} else {
+				//SIMD
+			}
 
-		printf("Computation time for %s : %f seconds\n",argv[i+1],dt);
+			end = clock();
+			dt = (end-start)/(float)(CLOCKS_PER_SEC);	
+
+			printf("Computation time for %s : %f seconds\n",argv[i],dt);
+			// save new img
+			int save = save_image(argv[i], &image);
+			if (save != 0) {
+				printf("Error saving %s\n", argv[i]);
+			}
+		} 
 	}
-//	for(int i = 0; i < argc; i++) {printf("%s\n", argv[i]); }
 	return 0;
 }	
