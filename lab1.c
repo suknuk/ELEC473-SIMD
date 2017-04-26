@@ -62,18 +62,73 @@ void process_threshold_c(struct Image* image, int threshold)
 
 void process_threshold_SIMD(struct Image* image, int threshold)
 {
+	/*
+	int input = 1,length=1,output;
+	__asm__(
+		"mov %[in], %%esi\n"
+		"mov %[l], %%ecx\n"
+	"l1:\n"
+		"movdqu (%%esi),%%xmm7\n"
+		"add $16,%%esi\n"
+		"add $16,%%ecx\n"
+	"jnz l1\n"
+		:"=m"(input),"=m" (output)								//outputs
+		:[in]"m" (input), [l]"m" (length),[out]"m" (output):	//inputs
+		"esi", "ecx", "xmm7"									//clobbers
+		);
+	*/
+	
+	/*
 	int src = 1;
 	int dst;
-	/*
-	asm("mov %1, %0\n\t"
+	
+	__asm__(
+		"mov %1, %0\n\t"
 		"add $1, %0"
-		: "=r" (dst)
-		: "r" (src));
+		: "=r" (dst)	// output
+		: "r" (src)		// input
+		);
 	printf("%d\n", dst);
 	*/
-	_asm{
-		emms;
-	}
+	
+	/*
+	ALGO:
+	index=0
+	loop:
+		if img data > threshold 
+			apply threshold
+		
+		move to next data index
+		
+		index++
+		if index < img->size
+			goto loop
+	*/
+	
+	unsigned char* img_new = (unsigned char*)malloc(image->size);
+	
+	int out1 = 0,out2 = 0,input1 = 10;
+	printf("%d %d %d\n", out1, out2, image->size);
+	
+	
+	__asm__ (
+		"mov $0, %%ecx\n\t"
+	"l1:\n\t"
+		"add $3, %%ecx\n\t"
+		"sub $1, %%eax\n\t"
+		"cmpl $0, %%eax\n\t"
+		"jne l1\n\t"
+		
+		// outputs
+		:"=c" (out1)	
+		// inputs
+		:"a" (image->size),	//image size on eax
+		"b" (input1)		// image data on ebx
+		
+	);
+	
+	printf("%d %d %d\n", out1, out2, image->size);
+	
 }
 
 //input threshold, image_path, .. , image_path
