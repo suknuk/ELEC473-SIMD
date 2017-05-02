@@ -62,22 +62,80 @@ void process_threshold_c(struct Image* image, int threshold)
 
 void process_threshold_SIMD(struct Image* image, int threshold)
 {
-	/*
-	int input = 1,length=1,output;
-	__asm__(
-		"mov %[in], %%esi\n"
-		"mov %[l], %%ecx\n"
-	"l1:\n"
-		"movdqu (%%esi),%%xmm7\n"
-		"add $16,%%esi\n"
-		"add $16,%%ecx\n"
-	"jnz l1\n"
-		:"=m"(input),"=m" (output)								//outputs
-		:[in]"m" (input), [l]"m" (length),[out]"m" (output):	//inputs
-		"esi", "ecx", "xmm7"									//clobbers
+	for (size_t i = 0; i < image->size; i++) {
+		__asm__
+		(
+			"cmp %%ebx, %%eax;"
+			"jl larger;"
+			"mov $0, %%edx;"
+			"jmp end;"
+		"larger:"
+			"mov $255, %%edx;"
+		"end:"
+			//output
+			:"=d"(image->data[i])
+		 	//input
+			:"a"(threshold),
+			"b"(image->data[i])
 		);
-	*/
+	}
+
+	/*
+	int ARR_LEN=10;
+	int STEP_SIZE=1;
+	long SOME_VALUE=100;
+
+	//long* arr = new long[ARR_LEN];
+	unsigned char* arr;
+	unsigned char arrVal[ARR_LEN];
+	arr = arrVal;
+
+	int i;
+
+	for (i=0; i<ARR_LEN; i++){
+		arr[i] = i*2;
+	}
+	for (i=0; i<ARR_LEN; i++){
+		printf("element %d is %u\n",i,arr[i]);
+	}
+
+	__asm__ __volatile__
+	(
+		"movq $3, (%%rbx);"
+	"loop:"
+		//"movq %%rdx, (%%rbx);"
+		//"leaq (%%rbx, %%rcx, 1), %%rbx;"
+
+		//"leaq (%%rbx, %%rcx,1), %%rbx;"
+		"cmpq $10, %%rax;"
+		"jg pos;"
+		"jmp neg;"
+	"pos:"
+		"movq $255, (%%rbx);"
+		"leaq (%%rbx, %%rcx,1), %%rbx;"
+		"jmp loop_end;"
+	"neg:"
+		"movq $1, (%%rbx);"
+		"leaq (%%rbx, %%rcx,1), %%rbx;"
+
+	"loop_end:"
+		"cmpq %%rbx, %%rax;"
+		"jg loop;"
 	
+		: // no output
+		: "b" (arr),
+		"a" (arr+ARR_LEN),
+		"c" (STEP_SIZE),
+		"d" (SOME_VALUE)
+		: "cc", "memory"
+	);
+
+	for (i=0; i<ARR_LEN; i++){
+		printf("element %d is %u\n",i,arr[i]);
+	}
+	*/
+
+
 	/*
 	int src = 1;
 	int dst;
@@ -90,45 +148,52 @@ void process_threshold_SIMD(struct Image* image, int threshold)
 		);
 	printf("%d\n", dst);
 	*/
-	
 	/*
-	ALGO:
-	index=0
-	loop:
-		if img data > threshold 
-			apply threshold
-		
-		move to next data index
-		
-		index++
-		if index < img->size
-			goto loop
-	*/
-	
 	unsigned char* img_new = (unsigned char*)malloc(image->size);
 	
 	int out1 = 0,out2 = 0,input1 = 10;
-	printf("%d %d %d\n", out1, out2, image->size);
-	
+	printf("%d %d %zu\n", out1, out2, image->size);
 	
 	__asm__ (
-		"mov $0, %%ecx\n\t"
-	"l1:\n\t"
-		"add $3, %%ecx\n\t"
-		"sub $1, %%eax\n\t"
-		"cmpl $0, %%eax\n\t"
-		"jne l1\n\t"
+		"mov %%ebx, %%esi\n\t"
+		"movdqu %%edi, %%xmm7\n\t"
+	// loop start
+	"loop1:\n\t"
+		
+	// check if point is higher or lower than the threshold
+
+		"cmpl %%ecx, %%edx\n\t"		// compare threshold(ecx) with the img point(edx)
+		"jg threshold_lower\n\t"	// threshold is lower -> jump to threshold_lower label
+		"jmp threshold_higher\n\t"	// jump to threshold_higher otherwise
+		
+	"threshold_lower:\n\t"
+		// data[i] = 0
+		"jmp threshold_end\n\t"	
+
+	"threshold_higher:\n\t"
+		// data[i] = 255
+		"jmp threshold_end\n\t"
+
+	"threshold_end:\n\t"
+
+	// loop image-size times
+		"dec %%eax\n\t"		// decrease loop counter by one (image size)
+		"cmpl $0, %%eax\n\t"	// compare it with 0
+		"jne loop1\n\t"		// jump to 'loop1' if eax is not 0
 		
 		// outputs
-		:"=c" (out1)	
+		:"=d" (out1)
+		
 		// inputs
 		:"a" (image->size),	//image size on eax
-		"b" (input1)		// image data on ebx
+		"b" (image->data),	// image data on ebx
+		"c" (threshold)		// threshold on ecx
 		
 	);
 	
-	printf("%d %d %d\n", out1, out2, image->size);
-	
+	printf("%d %d %zu\n", out1, out2, image->size);
+	printf("%p\n", &image->data);
+	*/
 }
 
 //input threshold, image_path, .. , image_path
